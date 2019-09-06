@@ -1,0 +1,178 @@
+---
+title: "Análise de Ocorrências no periodo 2014 a 2019, apresentando parte do código. Esse é um breve estudo acadêmico para uso do R"
+author: "Érica Jordana Bento Viana Cruz" 
+date: "06/09/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+lista.de.pacotes = c("tidyverse","lubridate","janitor","readxl","stringr","repmis","survey","srvyr") # escreva a lista de pacotes
+novos.pacotes <- lista.de.pacotes[!(lista.de.pacotes %in%
+                                      installed.packages()[,"Package"])]
+if(length(novos.pacotes) > 0) {install.packages(novos.pacotes)}
+lapply(lista.de.pacotes, require, character.only=T)
+rm(lista.de.pacotes,novos.pacotes)
+gc()
+```
+
+
+
+## Descrição de onde os dados foram obtidos.
+
+#### Os dados foram obtidos do site de dados abertos.http://sistema.cenipa.aer.mil.br/cenipa/media/opendata/oco.csv e http://sistema.cenipa.aer.mil.br/cenipa/media/opendata/anv.csv
+
+#### São dados de relatos de ocorrencias aeronauticas de aviação civil e das aeronaves envolvidas.
+#### Obtidos diretamente da web no endereço abaixo.
+```{r,echo=FALSE}
+dadosOcorrencias <- read.csv2("http://sistema.cenipa.aer.mil.br/cenipa/media/opendata/oco.csv", encoding = "UTF-8", sep = "~")
+
+dadosAeronaves <- read.csv2("http://sistema.cenipa.aer.mil.br/cenipa/media/opendata/anv.csv", encoding = "UTF-8", sep = "~")
+##View(dadosAeronaves)
+##dadosFTC <- read.csv2("http://sistema.cenipa.aer.mil.br/cenipa/media/opendata/ftc.csv", encoding = "UTF-8", sep = "~")
+
+```
+
+
+```{r echo=FALSE}
+##dim(dadosFTC)
+```
+
+
+<br>
+<br>
+
+## Vamos trabalhar com os dados superiores ao ano de 2014 para ocorrências
+```{r echo=TRUE, warning=FALSE}
+ano <- as.numeric(strtrim(dadosOcorrencias$ocorrencia_dia,4))
+dadosOcorrencias$ano <- ano ## Criando nova coluna com informações de ano.
+
+## subsetting
+dadosOcorrencias1 <- dadosOcorrencias[dadosOcorrencias$ano >= 2014,]
+
+## Ordenando os dados
+dadosOcorrencias1 <- dadosOcorrencias1[order(dadosOcorrencias1$ano),] ## order para matrizes.
+
+dim(dadosOcorrencias)
+```
+
+#### Sumário dos dados
+```{r echo=TRUE, warning=FALSE}
+##View(dadosOcorrencias)
+
+dadosOcorrencias1$codigo_ocorrencia <- as.character(dadosOcorrencias1$codigo_ocorrencia)
+summary(dadosOcorrencias1)
+
+```
+
+
+#### 10 Aeroportos com maior quantidade de relatórios de ocorrências.
+```{r echo=FALSE, warning=FALSE}
+top10 <- summary(dadosOcorrencias1$ocorrencia_aerodromo)
+
+top10 <- sort(top10, decreasing = TRUE)
+
+```
+
+```{r echo=TRUE}
+(top10 <- top10[c(3:12)])
+
+##cores <- as.numeric(dadosOcorrencias1$ocorrencia_aerodromo)
+
+par(las=2)
+barplot(top10, main = "10 Aeroportos com maior quantidade de reports.",
+     xlab="Código do Aeroporto",
+     ylab="Quantidade de Ocorrências",
+     col = c("aquamarine1", "gray2", "deeppink", "gold", "gainsboro", "darkviolet", "darksalmon", "goldenrod4", "dodgerblue4", "darkturquoise", "darkseagreen4"))
+
+
+```
+
+#### Gráfico
+```{r echo=TRUE, warning=FALSE}
+## Usando o Tapply para somar as ocorrencias por ano.
+(aeronavesacidentadas <- tapply(dadosOcorrencias1$total_aeronaves_envolvidas,dadosOcorrencias1$ano, sum))
+
+## apresentando os dados do Tapply
+par(las=2)
+barplot(aeronavesacidentadas, main = "Quantidade de relatos de aeronaves com ocorrências por ano",
+        xlab="Ano",
+        ylab="Quantidade de Ocorrências",
+        col = 1:6)
+```
+
+#### Dados de tipos de Ocorrências (indicidentes, incidentes graves, acidentes)
+```{r echo=TRUE, warning=FALSE}
+percentual1 <- (summary(dadosOcorrencias1$ocorrencia_classificacao)/nrow(dadosOcorrencias1))
+
+percentual <- round(percentual1,3)*100
+nomes <- names(percentual)
+percentual <- paste(head(round(percentual,3)), "%", sep="")
+names(percentual) <- nomes ## voltando os nomes pra tabela.
+
+```
+
+#### A semelhança de modelos de segurança do trabalho a expectativa é que as medidas de incidentes sejam muito superiores as
+#### de acidentes porém como incidentes tem mais possibilitades de não serem relatadas, os números de acidentes são 
+#### proporcionalmente altos em relação a ocorrências. Existe suspeita de subnotivicação de incidentes em estudo.
+
+```{r echo=FALSE}
+pie(percentual1,
+    main = "Tipos de Ocorrências")
+percentual
+```
+
+#### Dados de Ocorrencia Tipo Categoria para os vinte maiores.
+```{r echo=TRUE, warning=FALSE}
+ocorrenciaTipoCategoria <- summary(dadosOcorrencias1$ocorrencia_tipo_categoria)
+ocorrenciaTipoCategoria <- sort(ocorrenciaTipoCategoria, decreasing = TRUE)
+(ocorrenciaTipoCategoria20 <- ocorrenciaTipoCategoria[c(1:20)])
+
+```
+
+#### Dados de Ocorrencia Tipo para os vinte maiores tipos de ocorrência.
+```{r echo=TRUE, warning=FALSE}
+ocorrenciaTipo <- summary(dadosOcorrencias1$ocorrencia_tipo)
+ocorrenciaTipo <- sort(ocorrenciaTipo, decreasing = TRUE)
+(ocorrenciaTipo20 <- ocorrenciaTipo[c(1:20)])
+
+```
+
+
+## Verificando os dados de aeronaves de 2014 a 2019 
+```{r}
+dadosAeronaves$codigo_ocorrencia <- as.character(dadosAeronaves$codigo_ocorrencia)
+
+## Criando coluna com informação de ano
+ano <- as.numeric(strtrim(dadosAeronaves$codigo_ocorrencia,4))
+dadosAeronaves$ano <- ano
+
+
+##Filtrando os dados  de 2014 a 2019
+dadosAeronaves1 <- dadosAeronaves[dadosAeronaves$ano >= 2014,]
+dadosAeronaves1 <- dadosAeronaves1[order(dadosAeronaves1$ano),] ## order para matrizes.
+
+```
+
+
+#### Aeronaves verificando súmario dos dados
+```{r echo=TRUE}
+
+summary(dadosAeronaves1)
+dim(dadosAeronaves1)
+```
+
+#### Tipo de operação
+```{r echo=TRUE}
+
+tipoOperacao <- summary(dadosAeronaves1$aeronave_tipo_operacao)
+tipoOperacao <- sort(tipoOperacao, decreasing = TRUE)
+par(las=2)
+barplot(tipoOperacao, main = "Tipo de Operação das aeronaves envolvidas em ocorrências",
+        ##xlab="Tipo de Operação",
+        ylab="Quantidade de ocorrência",
+        col = 7:17)
+```
+
+
